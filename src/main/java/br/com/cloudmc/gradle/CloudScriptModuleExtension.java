@@ -10,6 +10,7 @@ public abstract class CloudScriptModuleExtension {
     private final Property<Integer> apiVersion;
     private final Property<String> stubsVersion;
     private final Property<Boolean> addStubDependency;
+    private final Property<Boolean> addCloudMcStubDependency;
     private final Property<Boolean> addCloudScriptStubDependency;
     private final Property<Boolean> attachToBuild;
     private final Property<String> moduleJarTaskName;
@@ -32,6 +33,7 @@ public abstract class CloudScriptModuleExtension {
         this.apiVersion = objects.property(Integer.class).convention(18);
         this.stubsVersion = objects.property(String.class).convention("latest.release");
         this.addStubDependency = objects.property(Boolean.class).convention(true);
+        this.addCloudMcStubDependency = objects.property(Boolean.class).convention(true);
         this.addCloudScriptStubDependency = objects.property(Boolean.class).convention(true);
         this.attachToBuild = objects.property(Boolean.class).convention(true);
         this.moduleJarTaskName = objects.property(String.class).convention("jar");
@@ -60,6 +62,10 @@ public abstract class CloudScriptModuleExtension {
 
     public Property<Boolean> getAddStubDependency() {
         return addStubDependency;
+    }
+
+    public Property<Boolean> getAddCloudMcStubDependency() {
+        return addCloudMcStubDependency;
     }
 
     public Property<Boolean> getAddCloudScriptStubDependency() {

@@ -57,6 +57,17 @@ cloudScriptModule {
 }
 ```
 
+When a module must compile strictly against the desktop workspace jar, keep
+CloudMC stubs only for validation:
+
+```kotlin
+cloudScriptModule {
+    setupWorkspace.set(true)
+    useWorkspaceClasspath.set(true)
+    addCloudMcStubDependency.set(false)
+}
+```
+
 ## API versions
 
 The plugin currently supports:

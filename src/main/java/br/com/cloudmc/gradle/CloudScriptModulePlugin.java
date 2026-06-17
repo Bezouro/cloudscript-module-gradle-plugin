@@ -80,7 +80,9 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
             if (extension.getAddStubDependency().get()) {
                 String dependency = "br.com.cloudmc:cloudmc-api" + apiVersion + "-stubs:" + extension.getStubsVersion().get();
                 project.getDependencies().add("cloudMcStubs", dependency);
-                project.getDependencies().add("compileOnly", dependency);
+                if (extension.getAddCloudMcStubDependency().get()) {
+                    project.getDependencies().add("compileOnly", dependency);
+                }
             }
             if (extension.getAddCloudScriptStubDependency().get()) {
                 project.getDependencies().add(
