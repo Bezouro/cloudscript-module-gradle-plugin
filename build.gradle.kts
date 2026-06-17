@@ -36,7 +36,7 @@ publishing {
     repositories {
         maven {
             name = "PublicMaven"
-            url = uri("../build/public-maven")
+            url = layout.buildDirectory.dir("public-maven").get().asFile.toURI()
         }
     }
 }
