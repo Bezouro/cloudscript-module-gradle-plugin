@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>br.com.cloudmc.cloudscript-module</groupId>
+  <artifactId>br.com.cloudmc.cloudscript-module.gradle.plugin</artifactId>
+  <version>0.3.0</version>
+  <packaging>pom</packaging>
+  <name>CloudScript Module Gradle Plugin</name>
+  <description>Builds and validates CloudScript modules for Desktop Minecraft and CloudMC.</description>
+  <dependencies>
+    <dependency>
+      <groupId>br.com.cloudmc</groupId>
+      <artifactId>cloudscript-module-gradle-plugin</artifactId>
+      <version>0.3.0</version>
+    </dependency>
+  </dependencies>
+</project>
