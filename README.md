@@ -33,7 +33,7 @@ pluginManagement {
 ```kotlin
 plugins {
     java
-    id("br.com.cloudmc.cloudscript-module") version "0.3.0"
+    id("br.com.cloudmc.cloudscript-module") version "0.4.0"
 }
 
 cloudScriptModule {
@@ -43,6 +43,20 @@ cloudScriptModule {
     moduleName.set("hello-world")
 }
 ```
+
+API 10 can use classic MCP 1.5 names by default, or CloudMC-style modern names:
+
+```kotlin
+cloudScriptModule {
+    apiVersion.set(10)
+    modernMinecraftNames.set(true)
+}
+```
+
+With this enabled, the workspace jar is remapped from notch -> MCP and then
+through the embedded bridge mapping MCP 1.5 -> CloudMC-style packages. The
+CloudMC jar keeps modern names and the desktop jar is still obfuscated back to
+notch names.
 
 The plugin downloads/remaps the Minecraft dev jar, adds CloudScript/Macro
 Keybind/LiteLoader dev stubs and CloudMC stubs as `compileOnly`, then produces:

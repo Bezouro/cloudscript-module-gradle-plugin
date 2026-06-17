@@ -15,6 +15,7 @@ public abstract class CloudScriptModuleExtension {
     private final Property<String> moduleJarTaskName;
     private final Property<Boolean> setupWorkspace;
     private final Property<Boolean> useWorkspaceClasspath;
+    private final Property<Boolean> modernMinecraftNames;
     private final Property<String> minecraftVersion;
     private final RegularFileProperty liteLoaderJar;
     private final RegularFileProperty macroKeybindJar;
@@ -36,6 +37,7 @@ public abstract class CloudScriptModuleExtension {
         this.moduleJarTaskName = objects.property(String.class).convention("jar");
         this.setupWorkspace = objects.property(Boolean.class).convention(false);
         this.useWorkspaceClasspath = objects.property(Boolean.class).convention(false);
+        this.modernMinecraftNames = objects.property(Boolean.class).convention(false);
         this.minecraftVersion = objects.property(String.class);
         this.liteLoaderJar = objects.fileProperty();
         this.macroKeybindJar = objects.fileProperty();
@@ -78,6 +80,10 @@ public abstract class CloudScriptModuleExtension {
 
     public Property<Boolean> getUseWorkspaceClasspath() {
         return useWorkspaceClasspath;
+    }
+
+    public Property<Boolean> getModernMinecraftNames() {
+        return modernMinecraftNames;
     }
 
     public Property<String> getMinecraftVersion() {

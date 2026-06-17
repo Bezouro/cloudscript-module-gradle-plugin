@@ -2,6 +2,11 @@
 
 Standalone example module for CloudScript API 10 / Minecraft 1.5.2.
 
+By default this example uses classic MCP 1.5 imports such as
+`net.minecraft.src.WorldClient`. To develop API 10 with CloudMC-style modern
+packages, set `modernMinecraftNames.set(true)` in `build.gradle.kts` and use
+imports such as `net.minecraft.client.multiplayer.WorldClient`.
+
 Build both desktop and CloudMC variants:
 
 ```powershell

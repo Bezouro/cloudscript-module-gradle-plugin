@@ -35,6 +35,9 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
     @Input
     public abstract Property<Integer> getApiVersion();
 
+    @Input
+    public abstract Property<Boolean> getModernMinecraftNames();
+
     @InputFile
     @PathSensitive(PathSensitivity.RELATIVE)
     public abstract RegularFileProperty getInputJar();
@@ -46,6 +49,9 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
     public void run() throws IOException {
         int api = getApiVersion().get();
         MappingSet mappings = loadMappings(api);
+        if (api == 10 && getModernMinecraftNames().get()) {
+            applyModernApi10Bridge(mappings);
+        }
 
         java.io.File out = getOutputJar().get().getAsFile();
         if (out.getParentFile() != null) out.getParentFile().mkdirs();
@@ -86,6 +92,68 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
             }
         }
         return mappings;
+    }
+
+    private void applyModernApi10Bridge(MappingSet mappings) throws IOException {
+        Map<String, String> bridge = loadBridgeClasses();
+        Map<String, String> classesToAdd = new HashMap<>();
+        Map<String, String> fieldsToAdd = new HashMap<>();
+        Map<Member, String> methodsToAdd = new HashMap<>();
+
+        bridge.forEach((mcpOwner, modernOwner) -> {
+            String notchOwner = mappings.classes.get(mcpOwner);
+            if (notchOwner != null) classesToAdd.put(modernOwner, notchOwner);
+
+            mappings.fields.forEach((key, value) -> {
+                String prefix = mcpOwner + "/";
+                if (key.startsWith(prefix)) fieldsToAdd.put(modernOwner + "/" + key.substring(prefix.length()), value);
+            });
+
+            mappings.methods.forEach((member, value) -> {
+                if (member.owner.equals(mcpOwner)) {
+                    methodsToAdd.put(new Member(modernOwner, member.name, bridgeDescriptor(member.descriptor, bridge)), value);
+                }
+            });
+        });
+
+        mappings.classes.putAll(classesToAdd);
+        mappings.fields.putAll(fieldsToAdd);
+        mappings.methods.putAll(methodsToAdd);
+    }
+
+    private Map<String, String> loadBridgeClasses() throws IOException {
+        InputStream stream = getClass().getClassLoader().getResourceAsStream("cloudmc/cloudmc-bridge-1.5.srg");
+        if (stream == null) throw new IOException("Missing bundled mapping resource cloudmc/cloudmc-bridge-1.5.srg");
+
+        Map<String, String> classes = new HashMap<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split("\\s+");
+                if (line.startsWith("CL: ") && parts.length >= 3) classes.put(parts[1], parts[2]);
+            }
+        }
+        return classes;
+    }
+
+    private String bridgeDescriptor(String descriptor, Map<String, String> bridge) {
+        Type type = Type.getType(descriptor);
+        if (type.getSort() == Type.METHOD) {
+            Type[] args = Type.getArgumentTypes(descriptor);
+            for (int i = 0; i < args.length; i++) args[i] = bridgeType(args[i], bridge);
+            return Type.getMethodDescriptor(bridgeType(Type.getReturnType(descriptor), bridge), args);
+        }
+        return bridgeType(type, bridge).getDescriptor();
+    }
+
+    private Type bridgeType(Type type, Map<String, String> bridge) {
+        if (type.getSort() == Type.ARRAY) {
+            return Type.getType("[".repeat(type.getDimensions()) + bridgeType(type.getElementType(), bridge).getDescriptor());
+        }
+        if (type.getSort() == Type.OBJECT) {
+            return Type.getObjectType(bridge.getOrDefault(type.getInternalName(), type.getInternalName()));
+        }
+        return type;
     }
 
     private Member splitMember(String ownerAndName, String descriptor) {

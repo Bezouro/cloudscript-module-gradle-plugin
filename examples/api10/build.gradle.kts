@@ -1,6 +1,6 @@
 plugins {
     java
-    id("br.com.cloudmc.cloudscript-module") version "0.3.0"
+    id("br.com.cloudmc.cloudscript-module") version "0.4.0"
 }
 
 group = "br.com.cloudmc.examples"
@@ -22,5 +22,8 @@ cloudScriptModule {
     moduleName.set("hello-api10")
     setupWorkspace.set(true)
     useWorkspaceClasspath.set(true)
+    // Set true to compile API 10 against CloudMC-style modern packages
+    // such as net.minecraft.client.multiplayer.WorldClient.
+    modernMinecraftNames.set(false)
     stubsVersion.set("latest.release")
 }

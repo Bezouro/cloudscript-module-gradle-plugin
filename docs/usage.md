@@ -34,7 +34,7 @@ Apply the plugin in `build.gradle.kts`:
 ```kotlin
 plugins {
     java
-    id("br.com.cloudmc.cloudscript-module") version "0.3.0"
+    id("br.com.cloudmc.cloudscript-module") version "0.4.0"
 }
 
 java {
@@ -65,6 +65,44 @@ The plugin currently supports:
 - API 18: Minecraft 1.8, MCP/deobfuscated modern package names.
 
 Unsupported API versions fail during Gradle configuration with a clear error.
+
+## API 10 Naming Mode
+
+API 10 defaults to the classic Minecraft 1.5.2 MCP package layout:
+
+```kotlin
+cloudScriptModule {
+    apiVersion.set(10)
+    modernMinecraftNames.set(false)
+}
+```
+
+That means developers import classes such as:
+
+```java
+import net.minecraft.src.WorldClient;
+```
+
+If you prefer to develop 1.5 modules using CloudMC-style modern packages, enable
+the bridge mode:
+
+```kotlin
+cloudScriptModule {
+    apiVersion.set(10)
+    modernMinecraftNames.set(true)
+}
+```
+
+Then developers can import:
+
+```java
+import net.minecraft.client.multiplayer.WorldClient;
+```
+
+Internally the plugin downloads the official 1.5.2 client jar, remaps it
+notch -> MCP, then applies the embedded bridge mapping MCP 1.5 -> CloudMC-style
+packages to the development library. The CloudMC jar is emitted with modern
+names, while the desktop jar is still obfuscated back to notch names.
 
 ## Main tasks
 

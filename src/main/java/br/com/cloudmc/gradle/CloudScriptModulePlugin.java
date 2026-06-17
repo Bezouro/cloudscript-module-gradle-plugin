@@ -56,6 +56,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                     task.setDescription("Downloads and prepares the Minecraft/LiteLoader/Macro Keybind workspace jars.");
                     task.getApiVersion().set(apiVersion);
                     task.getMinecraftVersion().set(minecraftVersion);
+                    task.getModernMinecraftNames().set(extension.getModernMinecraftNames());
                     task.getOutputDirectory().set(project.getLayout().getBuildDirectory().dir("cloudscript-workspace/api" + apiVersion));
                     task.getLiteLoaderJar().set(extension.getLiteLoaderJar());
                     task.getMacroKeybindJar().set(extension.getMacroKeybindJar());
@@ -93,6 +94,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.setGroup("CloudScript");
                 task.setDescription("Builds the desktop Minecraft module jar, remapping MCP names back to notch names.");
                 task.getApiVersion().set(apiVersion);
+                task.getModernMinecraftNames().set(extension.getModernMinecraftNames());
                 task.getInputJar().set(moduleJar.flatMap(Jar::getArchiveFile));
                 task.getOutputJar().set(project.getLayout().getBuildDirectory().file(
                     "libs/" + project.getName() + "-Api" + apiVersion + "-desktop.jar"

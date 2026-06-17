@@ -52,6 +52,9 @@ public abstract class SetupCloudScriptWorkspaceTask extends DefaultTask {
     public abstract Property<String> getMinecraftVersion();
 
     @Input
+    public abstract Property<Boolean> getModernMinecraftNames();
+
+    @Input
     @Optional
     public abstract Property<String> getLiteLoaderUrl();
 
@@ -105,7 +108,14 @@ public abstract class SetupCloudScriptWorkspaceTask extends DefaultTask {
         }
 
         MappingSet mappings = loadMappings(version);
-        remapJar(officialJar, getMinecraftDeobfJar().get().getAsFile(), mappings);
+        File minecraftOutput = getMinecraftDeobfJar().get().getAsFile();
+        if (getApiVersion().get() == 10 && getModernMinecraftNames().get()) {
+            File mcpJar = new File(outputDir, "minecraft-" + version + "-mcp.jar");
+            remapJar(officialJar, mcpJar, mappings);
+            remapJar(mcpJar, minecraftOutput, loadBridgeMappings());
+        } else {
+            remapJar(officialJar, minecraftOutput, mappings);
+        }
         prepareOptionalJar(getLiteLoaderJar(), getLiteLoaderUrl(), getLiteLoaderOutputJar().get().getAsFile());
         prepareOptionalJar(getMacroKeybindJar(), getMacroKeybindUrl(), getMacroKeybindOutputJar().get().getAsFile());
 
@@ -206,6 +216,23 @@ public abstract class SetupCloudScriptWorkspaceTask extends DefaultTask {
                     Member source = splitMember(parts[1], parts[2]);
                     Member target = splitMember(parts[3], parts[4]);
                     mappings.methods.put(source, target.name);
+                }
+            }
+        }
+        return mappings;
+    }
+
+    private MappingSet loadBridgeMappings() throws IOException {
+        InputStream stream = getClass().getClassLoader().getResourceAsStream("cloudmc/cloudmc-bridge-1.5.srg");
+        if (stream == null) throw new IOException("Missing bundled mapping resource cloudmc/cloudmc-bridge-1.5.srg");
+
+        MappingSet mappings = new MappingSet();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("CL: ")) {
+                    String[] parts = line.split("\\s+");
+                    if (parts.length >= 3) mappings.classes.put(parts[1], parts[2]);
                 }
             }
         }
