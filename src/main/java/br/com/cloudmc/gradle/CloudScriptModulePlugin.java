@@ -84,6 +84,16 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
             }
 
             TaskProvider<Jar> moduleJar = project.getTasks().named(extension.getModuleJarTaskName().get(), Jar.class);
+            TaskProvider<ObfuscateDesktopModuleTask> obfuscateDesktop = project.getTasks().register("obfuscateDesktopModule", ObfuscateDesktopModuleTask.class, task -> {
+                task.setGroup("CloudScript");
+                task.setDescription("Builds the desktop Minecraft module jar, remapping MCP names back to notch names.");
+                task.getApiVersion().set(apiVersion);
+                task.getInputJar().set(moduleJar.flatMap(Jar::getArchiveFile));
+                task.getOutputJar().set(project.getLayout().getBuildDirectory().file(
+                    "libs/" + project.getName() + "-Api" + apiVersion + "-desktop.jar"
+                ));
+            });
+
             TaskProvider<RemapCloudMcModuleTask> remap = project.getTasks().register("remapCloudMcModule", RemapCloudMcModuleTask.class, task -> {
                 task.setGroup("CloudScript");
                 task.setDescription("Builds the CloudMC module jar, remapping API 10 class names when required.");
@@ -108,8 +118,20 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.dependsOn(validate);
             });
 
+            project.getTasks().register("buildDesktopModule", task -> {
+                task.setGroup("CloudScript");
+                task.setDescription("Builds the desktop Minecraft obfuscated module jar.");
+                task.dependsOn(obfuscateDesktop);
+            });
+
+            project.getTasks().register("buildCloudScriptModule", task -> {
+                task.setGroup("CloudScript");
+                task.setDescription("Builds the desktop and CloudMC module jars.");
+                task.dependsOn(obfuscateDesktop, validate);
+            });
+
             if (extension.getAttachToBuild().get()) {
-                project.getTasks().named("build").configure(task -> task.dependsOn(validate));
+                project.getTasks().named("build").configure(task -> task.dependsOn(obfuscateDesktop, validate));
             }
         });
     }

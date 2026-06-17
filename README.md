@@ -6,9 +6,11 @@ Current behavior:
 
 - API 10 / Minecraft 1.5: compiles normally, remaps `net/minecraft/src/*` class
   references to CloudMC package names using the embedded 1.5 bridge SRG, then
-  validates against the latest CloudMC API 10 stubs.
+  validates against the latest CloudMC API 10 stubs. It also remaps the desktop
+  jar back to notch names using the embedded Minecraft 1.5.2 SRG.
 - API 18 / Minecraft 1.8: no naming remap is applied, but the output jar is
-  validated against the latest CloudMC API 18 stubs.
+  validated against the latest CloudMC API 18 stubs. It also remaps the desktop
+  jar back to notch names using the embedded Minecraft 1.8 SRG.
 
 Example module build:
 
@@ -35,8 +37,12 @@ cloudScriptModule {
 ```
 
 The plugin downloads/remaps the Minecraft dev jar, adds CloudScript/Macro
-Keybind/LiteLoader dev stubs and CloudMC stubs as `compileOnly`, then validates
-the final CloudMC jar using `latest.release`.
+Keybind/LiteLoader dev stubs and CloudMC stubs as `compileOnly`, then produces:
+
+- `build/libs/<project>-Api<api>-desktop.jar`: desktop Minecraft jar remapped
+  from MCP/deobf names back to notch names.
+- `build/libs/<project>-Api<api>-cloudmc.jar`: CloudMC jar validated against
+  the latest public stubs.
 
 Workspace setup can also prepare the developer classpath:
 
@@ -70,7 +76,10 @@ Tasks:
 
 ```text
 setupCloudScriptWorkspace
+obfuscateDesktopModule
+buildDesktopModule
 remapCloudMcModule
 validateCloudMcModule
 buildCloudMcModule
+buildCloudScriptModule
 ```
