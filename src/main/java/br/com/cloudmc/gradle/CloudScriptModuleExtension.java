@@ -20,6 +20,11 @@ public abstract class CloudScriptModuleExtension {
     private final RegularFileProperty macroKeybindJar;
     private final Property<String> liteLoaderUrl;
     private final Property<String> macroKeybindUrl;
+    private final Property<String> deployBaseUrl;
+    private final Property<String> deployToken;
+    private final Property<String> moduleName;
+    private final Property<Boolean> deployDesktop;
+    private final Property<Boolean> deployCloudMc;
 
     @Inject
     public CloudScriptModuleExtension(ObjectFactory objects) {
@@ -36,6 +41,11 @@ public abstract class CloudScriptModuleExtension {
         this.macroKeybindJar = objects.fileProperty();
         this.liteLoaderUrl = objects.property(String.class);
         this.macroKeybindUrl = objects.property(String.class);
+        this.deployBaseUrl = objects.property(String.class).convention("https://cloudscript.bezouro.com.br");
+        this.deployToken = objects.property(String.class);
+        this.moduleName = objects.property(String.class);
+        this.deployDesktop = objects.property(Boolean.class).convention(true);
+        this.deployCloudMc = objects.property(Boolean.class).convention(true);
     }
 
     public Property<Integer> getApiVersion() {
@@ -88,5 +98,25 @@ public abstract class CloudScriptModuleExtension {
 
     public Property<String> getMacroKeybindUrl() {
         return macroKeybindUrl;
+    }
+
+    public Property<String> getDeployBaseUrl() {
+        return deployBaseUrl;
+    }
+
+    public Property<String> getDeployToken() {
+        return deployToken;
+    }
+
+    public Property<String> getModuleName() {
+        return moduleName;
+    }
+
+    public Property<Boolean> getDeployDesktop() {
+        return deployDesktop;
+    }
+
+    public Property<Boolean> getDeployCloudMc() {
+        return deployCloudMc;
     }
 }

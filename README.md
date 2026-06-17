@@ -26,13 +26,14 @@ pluginManagement {
 ```kotlin
 plugins {
     java
-    id("br.com.cloudmc.cloudscript-module") version "0.1.0"
+    id("br.com.cloudmc.cloudscript-module") version "0.3.0"
 }
 
 cloudScriptModule {
     apiVersion.set(18)
     setupWorkspace.set(true)
     useWorkspaceClasspath.set(true)
+    moduleName.set("hello-world")
 }
 ```
 
@@ -43,6 +44,30 @@ Keybind/LiteLoader dev stubs and CloudMC stubs as `compileOnly`, then produces:
   from MCP/deobf names back to notch names.
 - `build/libs/<project>-Api<api>-cloudmc.jar`: CloudMC jar validated against
   the latest public stubs.
+
+Deploying to CloudScript:
+
+```powershell
+$env:CLOUDSCRIPT_TOKEN = "<session-token>"
+.\gradlew.bat deployCloudScriptModule
+```
+
+```kotlin
+cloudScriptModule {
+    apiVersion.set(18)
+    moduleName.set("hello-world")
+    deployBaseUrl.set("https://cloudscript.bezouro.com.br")
+    deployDesktop.set(true)
+    deployCloudMc.set(true)
+}
+```
+
+`deployCloudScriptModule` builds the desktop jar, remaps the CloudMC jar,
+validates CloudMC compatibility, validates CloudScript rules such as
+`@APIVersion`, then uploads both variants to `POST /api/modules/upload`.
+
+The deploy token can be configured with `cloudScriptModule.deployToken`,
+`-PcloudScriptToken=...`, or the `CLOUDSCRIPT_TOKEN` environment variable.
 
 Workspace setup can also prepare the developer classpath:
 
@@ -78,8 +103,10 @@ Tasks:
 setupCloudScriptWorkspace
 obfuscateDesktopModule
 buildDesktopModule
+validateCloudScriptModule
 remapCloudMcModule
 validateCloudMcModule
 buildCloudMcModule
 buildCloudScriptModule
+deployCloudScriptModule
 ```
