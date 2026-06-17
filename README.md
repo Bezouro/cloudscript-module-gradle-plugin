@@ -2,6 +2,13 @@
 
 Build helper for CloudScript modules that target Desktop Minecraft and CloudMC.
 
+Full usage guide: [docs/usage.md](docs/usage.md).
+
+Standalone example project zips:
+
+- [dist/examples/cloudscript-api10-example.zip](dist/examples/cloudscript-api10-example.zip)
+- [dist/examples/cloudscript-api18-example.zip](dist/examples/cloudscript-api18-example.zip)
+
 Current behavior:
 
 - API 10 / Minecraft 1.5: compiles normally, remaps `net/minecraft/src/*` class
