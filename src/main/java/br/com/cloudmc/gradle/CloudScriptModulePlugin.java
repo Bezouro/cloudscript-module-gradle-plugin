@@ -103,6 +103,13 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 ));
             });
 
+            TaskProvider<ValidateDesktopModuleTask> validateDesktop = project.getTasks().register("validateDesktopModule", ValidateDesktopModuleTask.class, task -> {
+                task.setGroup("CloudScript");
+                task.setDescription("Validates the desktop Minecraft module jar has no leftover API 10 deobfuscated names.");
+                task.getApiVersion().set(apiVersion);
+                task.getModuleJar().set(obfuscateDesktop.flatMap(ObfuscateDesktopModuleTask::getOutputJar));
+            });
+
             TaskProvider<RemapCloudMcModuleTask> remap = project.getTasks().register("remapCloudMcModule", RemapCloudMcModuleTask.class, task -> {
                 task.setGroup("CloudScript");
                 task.setDescription("Builds the CloudMC module jar, remapping API 10 class names when required.");
@@ -137,19 +144,19 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
             project.getTasks().register("buildDesktopModule", task -> {
                 task.setGroup("CloudScript");
                 task.setDescription("Builds the desktop Minecraft obfuscated module jar.");
-                task.dependsOn(obfuscateDesktop);
+                task.dependsOn(validateDesktop);
             });
 
             project.getTasks().register("buildCloudScriptModule", task -> {
                 task.setGroup("CloudScript");
                 task.setDescription("Builds the desktop and CloudMC module jars.");
-                task.dependsOn(obfuscateDesktop, validate, validateCloudScript);
+                task.dependsOn(validateDesktop, validate, validateCloudScript);
             });
 
             project.getTasks().register("deployCloudScriptModule", DeployCloudScriptModuleTask.class, task -> {
                 task.setGroup("CloudScript");
                 task.setDescription("Builds, validates and uploads the module to CloudScript.");
-                task.dependsOn(obfuscateDesktop, validate, validateCloudScript);
+                task.dependsOn(validateDesktop, validate, validateCloudScript);
                 task.getApiVersion().set(apiVersion);
                 task.getBaseUrl().set(extension.getDeployBaseUrl());
                 task.getToken().set(extension.getDeployToken());
@@ -161,7 +168,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
             });
 
             if (extension.getAttachToBuild().get()) {
-                project.getTasks().named("build").configure(task -> task.dependsOn(obfuscateDesktop, validate, validateCloudScript));
+                project.getTasks().named("build").configure(task -> task.dependsOn(validateDesktop, validate, validateCloudScript));
             }
         });
     }
