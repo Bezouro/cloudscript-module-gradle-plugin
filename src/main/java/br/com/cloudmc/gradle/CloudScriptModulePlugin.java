@@ -4,7 +4,9 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.SourceSet;
 import org.gradle.jvm.tasks.Jar;
 
 public class CloudScriptModulePlugin implements Plugin<Project> {
@@ -91,6 +93,9 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 );
             }
 
+            SourceSet mainSourceSet = project.getExtensions().getByType(JavaPluginExtension.class)
+                .getSourceSets()
+                .getByName(SourceSet.MAIN_SOURCE_SET_NAME);
             TaskProvider<Jar> moduleJar = project.getTasks().named(extension.getModuleJarTaskName().get(), Jar.class);
             TaskProvider<ObfuscateDesktopModuleTask> obfuscateDesktop = project.getTasks().register("obfuscateDesktopModule", ObfuscateDesktopModuleTask.class, task -> {
                 task.setGroup("CloudScript");
@@ -98,6 +103,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.getApiVersion().set(apiVersion);
                 task.getModernMinecraftNames().set(extension.getModernMinecraftNames());
                 task.getInputJar().set(moduleJar.flatMap(Jar::getArchiveFile));
+                task.getRemapClasspath().from(mainSourceSet.getCompileClasspath());
                 task.getOutputJar().set(project.getLayout().getBuildDirectory().file(
                     "libs/" + project.getName() + "-Api" + apiVersion + "-desktop.jar"
                 ));
@@ -108,6 +114,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.setDescription("Validates the desktop Minecraft module jar has no leftover API 10 deobfuscated names.");
                 task.getApiVersion().set(apiVersion);
                 task.getModuleJar().set(obfuscateDesktop.flatMap(ObfuscateDesktopModuleTask::getOutputJar));
+                task.getRemapClasspath().from(mainSourceSet.getCompileClasspath());
             });
 
             TaskProvider<RemapCloudMcModuleTask> remap = project.getTasks().register("remapCloudMcModule", RemapCloudMcModuleTask.class, task -> {

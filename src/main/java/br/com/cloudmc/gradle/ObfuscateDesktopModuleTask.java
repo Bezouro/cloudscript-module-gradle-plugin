@@ -1,8 +1,10 @@
 package br.com.cloudmc.gradle;
 
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
@@ -24,8 +26,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -42,6 +48,9 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
     @PathSensitive(PathSensitivity.RELATIVE)
     public abstract RegularFileProperty getInputJar();
 
+    @Classpath
+    public abstract ConfigurableFileCollection getRemapClasspath();
+
     @OutputFile
     public abstract RegularFileProperty getOutputJar();
 
@@ -52,11 +61,12 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
         if (api == 10 && getModernMinecraftNames().get()) {
             applyModernApi10Bridge(mappings);
         }
+        ClassHierarchy hierarchy = ClassHierarchy.from(getRemapClasspath(), mappings);
 
         java.io.File out = getOutputJar().get().getAsFile();
         if (out.getParentFile() != null) out.getParentFile().mkdirs();
 
-        int changed = remapJar(getInputJar().get().getAsFile().toPath(), out.toPath(), mappings);
+        int changed = remapJar(getInputJar().get().getAsFile().toPath(), out.toPath(), mappings, hierarchy);
         getLogger().lifecycle("[CloudScript] Wrote desktop obfuscated module jar: {} ({} changed classes)", out, changed);
     }
 
@@ -161,7 +171,7 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
         return new Member(ownerAndName.substring(0, separator), ownerAndName.substring(separator + 1), descriptor);
     }
 
-    private int remapJar(java.nio.file.Path input, java.nio.file.Path output, MappingSet mappings) throws IOException {
+    private int remapJar(java.nio.file.Path input, java.nio.file.Path output, MappingSet mappings, ClassHierarchy hierarchy) throws IOException {
         int changed = 0;
         try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(input));
              ZipOutputStream result = new ZipOutputStream(Files.newOutputStream(output))) {
@@ -171,7 +181,7 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
                 byte[] contents = entry.isDirectory() ? new byte[0] : zip.readAllBytes();
                 if (name.endsWith(".class")) {
                     RemapStats stats = new RemapStats();
-                    contents = remapClass(contents, mappings, stats);
+                    contents = remapClass(contents, mappings, hierarchy, stats);
                     if (stats.changed) changed++;
                     name = mapEntryName(name, mappings);
                 } else if (isSignature(name)) {
@@ -188,10 +198,10 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
         return changed;
     }
 
-    private byte[] remapClass(byte[] bytes, MappingSet mappings, RemapStats stats) {
+    private byte[] remapClass(byte[] bytes, MappingSet mappings, ClassHierarchy hierarchy, RemapStats stats) {
         ClassReader reader = new ClassReader(bytes);
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        reader.accept(new ClassRemapper(writer, new DesktopRemapper(mappings, stats)), 0);
+        reader.accept(new ClassRemapper(writer, new DesktopRemapper(mappings, hierarchy, stats)), 0);
         return writer.toByteArray();
     }
 
@@ -216,11 +226,13 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
 
     private static final class DesktopRemapper extends Remapper {
         private final MappingSet mappings;
+        private final ClassHierarchy hierarchy;
         private final RemapStats stats;
         private final Map<String, String> reverseClasses;
 
-        private DesktopRemapper(MappingSet mappings, RemapStats stats) {
+        private DesktopRemapper(MappingSet mappings, ClassHierarchy hierarchy, RemapStats stats) {
             this.mappings = mappings;
+            this.hierarchy = hierarchy;
             this.stats = stats;
             this.reverseClasses = new HashMap<>();
             mappings.classes.forEach((source, target) -> reverseClasses.put(target, source));
@@ -238,7 +250,7 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
 
         @Override
         public String mapFieldName(String owner, String name, String descriptor) {
-            String mapped = mappings.fields.get(owner + "/" + name);
+            String mapped = resolveField(owner, name);
             if (mapped != null) {
                 stats.changed = true;
                 return mapped;
@@ -249,13 +261,29 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
         @Override
         public String mapMethodName(String owner, String name, String descriptor) {
             String sourceDescriptor = unmapDescriptor(descriptor);
-            String mapped = mappings.methods.get(new Member(owner, name, sourceDescriptor));
-            if (mapped == null) mapped = mappings.methods.get(new Member(owner, name, descriptor));
+            String mapped = resolveMethod(owner, name, sourceDescriptor);
+            if (mapped == null) mapped = resolveMethod(owner, name, descriptor);
             if (mapped != null) {
                 stats.changed = true;
                 return mapped;
             }
             return name;
+        }
+
+        private String resolveField(String owner, String name) {
+            for (String candidate : hierarchy.walk(owner)) {
+                String mapped = mappings.fields.get(candidate + "/" + name);
+                if (mapped != null) return mapped;
+            }
+            return null;
+        }
+
+        private String resolveMethod(String owner, String name, String descriptor) {
+            for (String candidate : hierarchy.walk(owner)) {
+                String mapped = mappings.methods.get(new Member(candidate, name, descriptor));
+                if (mapped != null) return mapped;
+            }
+            return null;
         }
 
         private String unmapDescriptor(String descriptor) {
@@ -283,6 +311,83 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
         final Map<String, String> classes = new HashMap<>();
         final Map<String, String> fields = new HashMap<>();
         final Map<Member, String> methods = new HashMap<>();
+    }
+
+    private static final class ClassHierarchy {
+        private final Map<String, ClassInfo> classes;
+
+        private ClassHierarchy(Map<String, ClassInfo> classes) {
+            this.classes = classes;
+        }
+
+        static ClassHierarchy from(ConfigurableFileCollection classpath, MappingSet mappings) throws IOException {
+            Map<String, ClassInfo> classes = new HashMap<>();
+            for (java.io.File file : classpath.getFiles()) {
+                if (!file.exists()) continue;
+                if (file.isDirectory()) {
+                    try (java.util.stream.Stream<Path> paths = Files.walk(file.toPath())) {
+                        for (Path path : paths.filter(path -> path.toString().endsWith(".class")).toList()) {
+                            readClass(classes, Files.readAllBytes(path), mappings);
+                        }
+                    }
+                } else if (file.getName().endsWith(".jar")) {
+                    try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(file.toPath()))) {
+                        ZipEntry entry;
+                        while ((entry = zip.getNextEntry()) != null) {
+                            if (!entry.isDirectory() && entry.getName().endsWith(".class")) {
+                                readClass(classes, zip.readAllBytes(), mappings);
+                            }
+                        }
+                    }
+                }
+            }
+            return new ClassHierarchy(classes);
+        }
+
+        private static void readClass(Map<String, ClassInfo> classes, byte[] bytes, MappingSet mappings) {
+            ClassReader reader = new ClassReader(bytes);
+            String name = reader.getClassName();
+            classes.put(name, new ClassInfo(reader.getSuperName(), reader.getInterfaces()));
+
+            String mappedName = mappings.classes.get(name);
+            if (mappedName != null) {
+                String mappedSuper = reader.getSuperName() == null ? null : mappings.classes.getOrDefault(reader.getSuperName(), reader.getSuperName());
+                String[] interfaces = reader.getInterfaces();
+                String[] mappedInterfaces = new String[interfaces.length];
+                for (int i = 0; i < interfaces.length; i++) {
+                    mappedInterfaces[i] = mappings.classes.getOrDefault(interfaces[i], interfaces[i]);
+                }
+                classes.put(mappedName, new ClassInfo(mappedSuper, mappedInterfaces));
+            }
+        }
+
+        Iterable<String> walk(String owner) {
+            ArrayDeque<String> queue = new ArrayDeque<>();
+            Set<String> seen = new HashSet<>();
+            queue.add(owner);
+            return () -> new java.util.Iterator<>() {
+                @Override
+                public boolean hasNext() {
+                    return !queue.isEmpty();
+                }
+
+                @Override
+                public String next() {
+                    String current = queue.removeFirst();
+                    if (seen.add(current)) {
+                        ClassInfo info = classes.get(current);
+                        if (info != null) {
+                            if (info.superName != null) queue.addLast(info.superName);
+                            for (String itf : info.interfaces) queue.addLast(itf);
+                        }
+                    }
+                    return current;
+                }
+            };
+        }
+    }
+
+    private record ClassInfo(String superName, String[] interfaces) {
     }
 
     private record Member(String owner, String name, String descriptor) {
