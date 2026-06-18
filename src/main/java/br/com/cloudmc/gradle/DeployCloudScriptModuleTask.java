@@ -79,7 +79,7 @@ public abstract class DeployCloudScriptModuleTask extends DefaultTask {
 
     private void upload(String platform, java.nio.file.Path jar, boolean convertToCloudMc, String token) throws IOException, InterruptedException {
         String boundary = "----CloudScriptGradle" + UUID.randomUUID().toString().replace("-", "");
-        String filename = getModuleName().get() + "-Api" + getApiVersion().get() + ("cloudmc".equals(platform) ? "-cloudmc" : "") + ".jar";
+        String filename = ModuleNames.uploadFileName(getModuleName().get(), getApiVersion().get(), platform);
         byte[] body = multipart(boundary, platform, convertToCloudMc, filename, Files.readAllBytes(jar));
 
         URI uri = URI.create(trimTrailingSlash(getBaseUrl().get()) + "/api/modules/upload");

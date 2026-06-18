@@ -105,7 +105,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.getInputJar().set(moduleJar.flatMap(Jar::getArchiveFile));
                 task.getRemapClasspath().from(mainSourceSet.getCompileClasspath());
                 task.getOutputJar().set(project.getLayout().getBuildDirectory().file(
-                    "libs/" + project.getName() + "-Api" + apiVersion + "-desktop.jar"
+                    "libs/" + ModuleNames.artifactName(project.getName(), apiVersion, "desktop")
                 ));
             });
 
@@ -123,7 +123,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.getApiVersion().set(apiVersion);
                 task.getInputJar().set(moduleJar.flatMap(Jar::getArchiveFile));
                 task.getOutputJar().set(project.getLayout().getBuildDirectory().file(
-                    "libs/" + project.getName() + "-Api" + apiVersion + "-cloudmc.jar"
+                    "libs/" + ModuleNames.artifactName(project.getName(), apiVersion, "cloudmc")
                 ));
             });
 
