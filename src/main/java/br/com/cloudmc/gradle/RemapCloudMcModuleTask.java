@@ -94,7 +94,7 @@ public abstract class RemapCloudMcModuleTask extends DefaultTask {
 
     private byte[] remapClass(byte[] bytes, Map<String, String> classes, RemapStats stats) {
         ClassReader reader = new ClassReader(bytes);
-        ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_MAXS);
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         reader.accept(new ClassRemapper(writer, new BridgeRemapper(classes, stats)), 0);
         return writer.toByteArray();
     }

@@ -271,7 +271,7 @@ public abstract class SetupCloudScriptWorkspaceTask extends DefaultTask {
 
     private byte[] remapClass(byte[] bytes, MappingSet mappings, RemapStats stats) {
         ClassReader reader = new ClassReader(bytes);
-        ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_MAXS);
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         reader.accept(new ClassRemapper(writer, new SrgRemapper(mappings, stats)), 0);
         return writer.toByteArray();
     }
