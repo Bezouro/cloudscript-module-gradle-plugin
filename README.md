@@ -33,7 +33,7 @@ pluginManagement {
 ```kotlin
 plugins {
     java
-    id("br.com.cloudmc.cloudscript-module") version "0.4.0"
+    id("br.com.cloudmc.cloudscript-module") version "0.4.6"
 }
 
 cloudScriptModule {
@@ -59,11 +59,12 @@ CloudMC jar keeps modern names and the desktop jar is still obfuscated back to
 notch names.
 
 The plugin downloads/remaps the Minecraft dev jar, adds CloudScript/Macro
-Keybind/LiteLoader dev stubs and CloudMC stubs as `compileOnly`, then produces:
+Keybind/LiteLoader dev stubs and CloudMC stubs as `compileOnly`, then produces
+jar names from `cloudScriptModule.moduleName`:
 
-- `build/libs/<project>-Api<api>-desktop.jar`: desktop Minecraft jar remapped
+- `build/libs/<moduleName>-Api<api>-desktop.jar`: desktop Minecraft jar remapped
   from MCP/deobf names back to notch names.
-- `build/libs/<project>-Api<api>-cloudmc.jar`: CloudMC jar validated against
+- `build/libs/<moduleName>-Api<api>-cloudmc.jar`: CloudMC jar validated against
   the latest public stubs.
 
 Deploying to CloudScript:

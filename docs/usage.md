@@ -34,7 +34,7 @@ Apply the plugin in `build.gradle.kts`:
 ```kotlin
 plugins {
     java
-    id("br.com.cloudmc.cloudscript-module") version "0.4.0"
+    id("br.com.cloudmc.cloudscript-module") version "0.4.6"
 }
 
 java {
@@ -129,12 +129,14 @@ deployCloudScriptModule
 `buildCloudScriptModule` is the normal local release task. It produces:
 
 ```text
-build/libs/<project>-Api<api>-desktop.jar
-build/libs/<project>-Api<api>-cloudmc.jar
+build/libs/<moduleName>-Api<api>-desktop.jar
+build/libs/<moduleName>-Api<api>-cloudmc.jar
 ```
 
 The desktop jar is obfuscated back to Minecraft notch names. The CloudMC jar is
 remapped where needed and validated against the latest public CloudMC stubs.
+`moduleName` defaults to the Gradle project name and can be set explicitly when
+the project name already contains an API suffix.
 
 ## Deploy
 

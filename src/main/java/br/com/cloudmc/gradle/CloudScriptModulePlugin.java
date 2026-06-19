@@ -49,6 +49,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 throw new IllegalArgumentException("Unsupported CloudScript API " + apiVersion + "; expected 10 or 18");
             }
 
+            String moduleName = extension.getModuleName().get();
             String minecraftVersion = extension.getMinecraftVersion().getOrElse(apiVersion == 10 ? "1.5.2" : "1.8");
             TaskProvider<SetupCloudScriptWorkspaceTask> setupWorkspace = project.getTasks().register(
                 "setupCloudScriptWorkspace",
@@ -105,7 +106,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.getInputJar().set(moduleJar.flatMap(Jar::getArchiveFile));
                 task.getRemapClasspath().from(mainSourceSet.getCompileClasspath());
                 task.getOutputJar().set(project.getLayout().getBuildDirectory().file(
-                    "libs/" + ModuleNames.artifactName(project.getName(), apiVersion, "desktop")
+                    "libs/" + ModuleNames.artifactName(moduleName, apiVersion, "desktop")
                 ));
             });
 
@@ -123,7 +124,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.getApiVersion().set(apiVersion);
                 task.getInputJar().set(moduleJar.flatMap(Jar::getArchiveFile));
                 task.getOutputJar().set(project.getLayout().getBuildDirectory().file(
-                    "libs/" + ModuleNames.artifactName(project.getName(), apiVersion, "cloudmc")
+                    "libs/" + ModuleNames.artifactName(moduleName, apiVersion, "cloudmc")
                 ));
             });
 
