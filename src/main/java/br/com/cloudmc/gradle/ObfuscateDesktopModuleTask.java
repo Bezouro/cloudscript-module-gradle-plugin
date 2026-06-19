@@ -122,8 +122,14 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
             mappings.methods.forEach((member, value) -> {
                 if (member.owner.equals(mcpOwner)) {
                     methodsToAdd.put(new Member(modernOwner, member.name, bridgeDescriptor(member.descriptor, bridge)), value);
+                    methodsToAdd.put(new Member(modernOwner, member.name, mapDescriptor(member.descriptor, mappings.classes)), value);
                 }
             });
+        });
+
+        mappings.methods.forEach((member, value) -> {
+            methodsToAdd.put(new Member(member.owner, member.name, bridgeDescriptor(member.descriptor, bridge)), value);
+            methodsToAdd.put(new Member(member.owner, member.name, mapDescriptor(member.descriptor, mappings.classes)), value);
         });
 
         mappings.classes.putAll(classesToAdd);
@@ -147,21 +153,25 @@ public abstract class ObfuscateDesktopModuleTask extends DefaultTask {
     }
 
     private String bridgeDescriptor(String descriptor, Map<String, String> bridge) {
+        return mapDescriptor(descriptor, bridge);
+    }
+
+    private String mapDescriptor(String descriptor, Map<String, String> classes) {
         Type type = Type.getType(descriptor);
         if (type.getSort() == Type.METHOD) {
             Type[] args = Type.getArgumentTypes(descriptor);
-            for (int i = 0; i < args.length; i++) args[i] = bridgeType(args[i], bridge);
-            return Type.getMethodDescriptor(bridgeType(Type.getReturnType(descriptor), bridge), args);
+            for (int i = 0; i < args.length; i++) args[i] = mapType(args[i], classes);
+            return Type.getMethodDescriptor(mapType(Type.getReturnType(descriptor), classes), args);
         }
-        return bridgeType(type, bridge).getDescriptor();
+        return mapType(type, classes).getDescriptor();
     }
 
-    private Type bridgeType(Type type, Map<String, String> bridge) {
+    private Type mapType(Type type, Map<String, String> classes) {
         if (type.getSort() == Type.ARRAY) {
-            return Type.getType("[".repeat(type.getDimensions()) + bridgeType(type.getElementType(), bridge).getDescriptor());
+            return Type.getType("[".repeat(type.getDimensions()) + mapType(type.getElementType(), classes).getDescriptor());
         }
         if (type.getSort() == Type.OBJECT) {
-            return Type.getObjectType(bridge.getOrDefault(type.getInternalName(), type.getInternalName()));
+            return Type.getObjectType(classes.getOrDefault(type.getInternalName(), type.getInternalName()));
         }
         return type;
     }
