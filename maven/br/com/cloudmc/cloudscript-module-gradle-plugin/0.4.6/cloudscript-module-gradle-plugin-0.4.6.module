@@ -27,11 +27,11 @@
         {
           "name": "cloudscript-module-gradle-plugin-0.4.6.jar",
           "url": "cloudscript-module-gradle-plugin-0.4.6.jar",
-          "size": 712803,
-          "sha512": "353a7db2ddcadca29eabdac42f8df2b544ab538e13528bd80893e7f7a777bd2e25239c168630a48f3acaa0f87a3fa3f7b372e984b3b21d202f8b8674ad0ca39d",
-          "sha256": "f408ec6d2d7df7429bbeb4e722b1345e61bf148e8aa0fad1a107263aa1df8ff0",
-          "sha1": "efad8f67f7263b9e16ccbb792eb1abad3d675ccd",
-          "md5": "29e2b0298f805354a519f358eacc9ea5"
+          "size": 712844,
+          "sha512": "766f8ea6977186323cebfec4d9913e62d75bdcef19621494889412c96598313f77f41fd2cf0ff0355f2fab2e71a4af6ead3a4f35b07edbaa64a3bb96a442b9d2",
+          "sha256": "ccb7fde58ecf67a8079ac2eaed28b683584631400c60ae54f767802066569883",
+          "sha1": "b6f894196101cb8b63d3be7910268ac94361e59b",
+          "md5": "120a540ac7532e7944f34d76b8292644"
         }
       ]
     },
@@ -71,11 +71,11 @@
         {
           "name": "cloudscript-module-gradle-plugin-0.4.6.jar",
           "url": "cloudscript-module-gradle-plugin-0.4.6.jar",
-          "size": 712803,
-          "sha512": "353a7db2ddcadca29eabdac42f8df2b544ab538e13528bd80893e7f7a777bd2e25239c168630a48f3acaa0f87a3fa3f7b372e984b3b21d202f8b8674ad0ca39d",
-          "sha256": "f408ec6d2d7df7429bbeb4e722b1345e61bf148e8aa0fad1a107263aa1df8ff0",
-          "sha1": "efad8f67f7263b9e16ccbb792eb1abad3d675ccd",
-          "md5": "29e2b0298f805354a519f358eacc9ea5"
+          "size": 712844,
+          "sha512": "766f8ea6977186323cebfec4d9913e62d75bdcef19621494889412c96598313f77f41fd2cf0ff0355f2fab2e71a4af6ead3a4f35b07edbaa64a3bb96a442b9d2",
+          "sha256": "ccb7fde58ecf67a8079ac2eaed28b683584631400c60ae54f767802066569883",
+          "sha1": "b6f894196101cb8b63d3be7910268ac94361e59b",
+          "md5": "120a540ac7532e7944f34d76b8292644"
         }
       ]
     }
