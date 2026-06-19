@@ -1,0 +1,83 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "br.com.cloudmc",
+    "module": "cloudscript-module-gradle-plugin",
+    "version": "0.4.7",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.5.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "cloudscript-module-gradle-plugin-0.4.7.jar",
+          "url": "cloudscript-module-gradle-plugin-0.4.7.jar",
+          "size": 713249,
+          "sha512": "d5e0b9447fade968c9768009f131fcaade0bff20b49caa3c6978c35f3fa85e41e31ee52a7f4f330076347b03b88043e8f2ecd91c0ed725cf88de7231e1425e49",
+          "sha256": "b8693435e1e0e6eae7630992b8efabf17dbb2d094ed5ce03b153176ef286a09d",
+          "sha1": "4f6b651475ce56c7bcc747f92c79f1290d8f0262",
+          "md5": "ecd57022dc0125c95626644c5a69aea1"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.ow2.asm",
+          "module": "asm",
+          "version": {
+            "requires": "9.7.1"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-commons",
+          "version": {
+            "requires": "9.7.1"
+          }
+        },
+        {
+          "group": "org.ow2.asm",
+          "module": "asm-tree",
+          "version": {
+            "requires": "9.7.1"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "cloudscript-module-gradle-plugin-0.4.7.jar",
+          "url": "cloudscript-module-gradle-plugin-0.4.7.jar",
+          "size": 713249,
+          "sha512": "d5e0b9447fade968c9768009f131fcaade0bff20b49caa3c6978c35f3fa85e41e31ee52a7f4f330076347b03b88043e8f2ecd91c0ed725cf88de7231e1425e49",
+          "sha256": "b8693435e1e0e6eae7630992b8efabf17dbb2d094ed5ce03b153176ef286a09d",
+          "sha1": "4f6b651475ce56c7bcc747f92c79f1290d8f0262",
+          "md5": "ecd57022dc0125c95626644c5a69aea1"
+        }
+      ]
+    }
+  ]
+}
