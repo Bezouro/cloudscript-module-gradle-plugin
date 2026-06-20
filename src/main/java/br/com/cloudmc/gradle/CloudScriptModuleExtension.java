@@ -2,6 +2,7 @@ package br.com.cloudmc.gradle;
 
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 
 import javax.inject.Inject;
@@ -27,6 +28,10 @@ public abstract class CloudScriptModuleExtension {
     private final Property<String> moduleName;
     private final Property<Boolean> deployDesktop;
     private final Property<Boolean> deployCloudMc;
+    private final Property<Boolean> nativeMetadata;
+    private final Property<Boolean> nativeIncludeModuleResources;
+    private final ListProperty<String> nativeReflectClasses;
+    private final ListProperty<String> nativeResourcePatterns;
 
     @Inject
     public CloudScriptModuleExtension(ObjectFactory objects) {
@@ -50,6 +55,10 @@ public abstract class CloudScriptModuleExtension {
         this.moduleName = objects.property(String.class);
         this.deployDesktop = objects.property(Boolean.class).convention(true);
         this.deployCloudMc = objects.property(Boolean.class).convention(true);
+        this.nativeMetadata = objects.property(Boolean.class).convention(true);
+        this.nativeIncludeModuleResources = objects.property(Boolean.class).convention(true);
+        this.nativeReflectClasses = objects.listProperty(String.class).convention(java.util.List.of());
+        this.nativeResourcePatterns = objects.listProperty(String.class).convention(java.util.List.of());
     }
 
     public Property<Integer> getApiVersion() {
@@ -130,5 +139,21 @@ public abstract class CloudScriptModuleExtension {
 
     public Property<Boolean> getDeployCloudMc() {
         return deployCloudMc;
+    }
+
+    public Property<Boolean> getNativeMetadata() {
+        return nativeMetadata;
+    }
+
+    public Property<Boolean> getNativeIncludeModuleResources() {
+        return nativeIncludeModuleResources;
+    }
+
+    public ListProperty<String> getNativeReflectClasses() {
+        return nativeReflectClasses;
+    }
+
+    public ListProperty<String> getNativeResourcePatterns() {
+        return nativeResourcePatterns;
     }
 }

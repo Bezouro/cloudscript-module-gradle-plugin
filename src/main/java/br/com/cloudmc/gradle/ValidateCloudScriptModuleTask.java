@@ -36,8 +36,8 @@ public abstract class ValidateCloudScriptModuleTask extends DefaultTask {
     @TaskAction
     public void run() throws IOException {
         int expectedApi = getApiVersion().get();
-        if (expectedApi != 10 && expectedApi != 18) {
-            throw new IllegalStateException("Unsupported CloudScript API " + expectedApi + "; expected 10 or 18");
+        if (expectedApi != 10 && expectedApi != 18 && expectedApi != 26) {
+            throw new IllegalStateException("Unsupported CloudScript API " + expectedApi + "; expected 10, 18 or 26");
         }
 
         List<String> issues = new ArrayList<>();

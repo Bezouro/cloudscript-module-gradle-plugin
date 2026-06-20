@@ -48,10 +48,10 @@ public abstract class RemapCloudMcModuleTask extends DefaultTask {
         byte[] output;
         if (api == 10) {
             output = remapApi10(input);
-        } else if (api == 18) {
+        } else if (api == 18 || api == 26) {
             output = input;
         } else {
-            throw new IllegalArgumentException("Unsupported CloudScript API " + api + "; expected 10 or 18");
+            throw new IllegalArgumentException("Unsupported CloudScript API " + api + "; expected 10, 18 or 26");
         }
 
         java.io.File out = getOutputJar().get().getAsFile();

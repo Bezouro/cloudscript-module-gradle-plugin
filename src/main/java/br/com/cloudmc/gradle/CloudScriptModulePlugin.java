@@ -45,12 +45,15 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
 
         project.afterEvaluate(ignored -> {
             int apiVersion = extension.getApiVersion().get();
-            if (apiVersion != 10 && apiVersion != 18) {
-                throw new IllegalArgumentException("Unsupported CloudScript API " + apiVersion + "; expected 10 or 18");
+            if (apiVersion != 10 && apiVersion != 18 && apiVersion != 26) {
+                throw new IllegalArgumentException("Unsupported CloudScript API " + apiVersion + "; expected 10, 18 or 26");
             }
 
             String moduleName = extension.getModuleName().get();
-            String minecraftVersion = extension.getMinecraftVersion().getOrElse(apiVersion == 10 ? "1.5.2" : "1.8");
+            String minecraftVersion = extension.getMinecraftVersion().getOrElse(defaultMinecraftVersion(apiVersion));
+            if (apiVersion == 26 && (extension.getSetupWorkspace().get() || extension.getUseWorkspaceClasspath().get())) {
+                throw new IllegalArgumentException("CloudScript API 26 does not support setupCloudScriptWorkspace yet. Use published stubs or provide your own compileOnly jars.");
+            }
             TaskProvider<SetupCloudScriptWorkspaceTask> setupWorkspace = project.getTasks().register(
                 "setupCloudScriptWorkspace",
                 SetupCloudScriptWorkspaceTask.class,
@@ -124,15 +127,34 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.getApiVersion().set(apiVersion);
                 task.getInputJar().set(moduleJar.flatMap(Jar::getArchiveFile));
                 task.getOutputJar().set(project.getLayout().getBuildDirectory().file(
-                    "libs/" + ModuleNames.artifactName(moduleName, apiVersion, "cloudmc")
+                    "intermediates/cloudscript/cloudmc-remapped/" + ModuleNames.artifactName(moduleName, apiVersion, "cloudmc")
                 ));
             });
+
+            TaskProvider<GenerateCloudMcNativeMetadataTask> nativeCloudMc = project.getTasks().register(
+                "generateCloudMcNativeMetadata",
+                GenerateCloudMcNativeMetadataTask.class,
+                task -> {
+                    task.setGroup("CloudScript");
+                    task.setDescription("Adds CloudMC native-image metadata to the CloudMC module jar.");
+                    task.getApiVersion().set(apiVersion);
+                    task.getModuleName().set(extension.getModuleName());
+                    task.getNativeMetadataEnabled().set(extension.getNativeMetadata());
+                    task.getIncludeModuleResources().set(extension.getNativeIncludeModuleResources());
+                    task.getAdditionalReflectClasses().set(extension.getNativeReflectClasses());
+                    task.getAdditionalResourcePatterns().set(extension.getNativeResourcePatterns());
+                    task.getInputJar().set(remap.flatMap(RemapCloudMcModuleTask::getOutputJar));
+                    task.getOutputJar().set(project.getLayout().getBuildDirectory().file(
+                        "libs/" + ModuleNames.artifactName(moduleName, apiVersion, "cloudmc")
+                    ));
+                }
+            );
 
             TaskProvider<ValidateCloudMcModuleTask> validate = project.getTasks().register("validateCloudMcModule", ValidateCloudMcModuleTask.class, task -> {
                 task.setGroup("CloudScript");
                 task.setDescription("Validates the CloudMC module jar against the current CloudMC stubs.");
                 task.getApiVersion().set(apiVersion);
-                task.getModuleJar().set(remap.flatMap(RemapCloudMcModuleTask::getOutputJar));
+                task.getModuleJar().set(nativeCloudMc.flatMap(GenerateCloudMcNativeMetadataTask::getOutputJar));
                 task.getStubClasspath().from(stubs);
             });
 
@@ -157,14 +179,25 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
 
             project.getTasks().register("buildCloudScriptModule", task -> {
                 task.setGroup("CloudScript");
-                task.setDescription("Builds the desktop and CloudMC module jars.");
-                task.dependsOn(validateDesktop, validate, validateCloudScript);
+                task.setDescription(apiVersion == 26
+                    ? "Builds the CloudMC module jar for API 26."
+                    : "Builds the desktop and CloudMC module jars.");
+                if (apiVersion != 26) {
+                    task.dependsOn(validateDesktop);
+                }
+                task.dependsOn(validate, validateCloudScript);
             });
 
             project.getTasks().register("deployCloudScriptModule", DeployCloudScriptModuleTask.class, task -> {
                 task.setGroup("CloudScript");
                 task.setDescription("Builds, validates and uploads the module to CloudScript.");
-                task.dependsOn(validateDesktop, validate, validateCloudScript);
+                if (extension.getDeployDesktop().get()) {
+                    task.dependsOn(validateDesktop);
+                }
+                if (extension.getDeployCloudMc().get()) {
+                    task.dependsOn(validate);
+                }
+                task.dependsOn(validateCloudScript);
                 task.getApiVersion().set(apiVersion);
                 task.getBaseUrl().set(extension.getDeployBaseUrl());
                 task.getToken().set(extension.getDeployToken());
@@ -172,12 +205,24 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.getDeployDesktop().set(extension.getDeployDesktop());
                 task.getDeployCloudMc().set(extension.getDeployCloudMc());
                 task.getDesktopJar().set(obfuscateDesktop.flatMap(ObfuscateDesktopModuleTask::getOutputJar));
-                task.getCloudMcJar().set(remap.flatMap(RemapCloudMcModuleTask::getOutputJar));
+                task.getCloudMcJar().set(nativeCloudMc.flatMap(GenerateCloudMcNativeMetadataTask::getOutputJar));
             });
 
             if (extension.getAttachToBuild().get()) {
-                project.getTasks().named("build").configure(task -> task.dependsOn(validateDesktop, validate, validateCloudScript));
+                project.getTasks().named("build").configure(task -> {
+                    if (apiVersion != 26) {
+                        task.dependsOn(validateDesktop);
+                    }
+                    task.dependsOn(validate, validateCloudScript);
+                });
             }
         });
+    }
+
+    private String defaultMinecraftVersion(int apiVersion) {
+        if (apiVersion == 10) return "1.5.2";
+        if (apiVersion == 18) return "1.8";
+        if (apiVersion == 26) return "1.12.1";
+        throw new IllegalArgumentException("Unsupported CloudScript API " + apiVersion);
     }
 }

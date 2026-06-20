@@ -74,8 +74,12 @@ The plugin currently supports:
 
 - API 10: Minecraft 1.5.2, MCP `net.minecraft.src.*` development names.
 - API 18: Minecraft 1.8, MCP/deobfuscated modern package names.
+- API 26: Minecraft 1.12.1 CloudMC/native modules. Desktop obfuscation and
+  `setupCloudScriptWorkspace` are not bundled for API 26 yet.
 
 Unsupported API versions fail during Gradle configuration with a clear error.
+For API 26, use published stubs or your own `compileOnly` jars and set
+`deployDesktop.set(false)` when deploying.
 
 ## API 10 Naming Mode
 
@@ -123,6 +127,7 @@ buildDesktopModule
 buildCloudMcModule
 buildCloudScriptModule
 validateCloudScriptModule
+generateCloudMcNativeMetadata
 deployCloudScriptModule
 ```
 
@@ -134,14 +139,62 @@ build/libs/<moduleName>-Api<api>-cloudmc.jar
 ```
 
 The desktop jar is obfuscated back to Minecraft notch names. The CloudMC jar is
-remapped where needed and validated against the latest public CloudMC stubs.
-`moduleName` defaults to the Gradle project name and can be set explicitly when
-the project name already contains an API suffix.
+remapped where needed, enriched with native-image metadata and validated against
+the latest public CloudMC stubs. `moduleName` defaults to the Gradle project
+name and can be set explicitly when the project name already contains an API
+suffix.
+
+## GraalVM native metadata
+
+`generateCloudMcNativeMetadata` runs automatically as part of the CloudMC module
+pipeline. It keeps the public CloudMC artifact name unchanged:
+
+```text
+build/libs/<moduleName>-Api<api>-cloudmc.jar
+```
+
+The task adds metadata used by Minicraft native-image builds:
+
+```text
+META-INF/cloudmc/cloudscript-module.classes
+META-INF/cloudmc/cloudscript-api<api>.classes
+META-INF/native-image/cloudmc/<module>-api<api>/reflect-config.json
+META-INF/native-image/cloudmc/<module>-api<api>/resource-config.json
+```
+
+Registerable classes are detected by bytecode hierarchy. The class name does
+not need to start with `ScriptAction`; extending CloudScript's action/provider
+base classes or implementing Macro Keybind interfaces is enough.
+
+Resource metadata is generated for non-class resources packaged in the module.
+If your module creates classes by reflection or reads resources whose paths are
+computed dynamically, declare the extra metadata explicitly:
+
+```kotlin
+cloudScriptModule {
+    nativeReflectClasses.add("com.example.internal.CreatedByReflection")
+    nativeResourcePatterns.add("\\Qassets/example/config.json\\E")
+}
+```
+
+You can disable automatic resource inclusion or all native metadata when needed:
+
+```kotlin
+cloudScriptModule {
+    nativeIncludeModuleResources.set(false)
+    nativeMetadata.set(false)
+}
+```
+
+Native compatibility is a build-time contract. Desktop Minecraft and JVM-based
+CloudMC can still load downloaded module jars dynamically. GraalVM native images
+cannot load new Java bytecode after compilation, so third-party modules must be
+included in the Minicraft native-image build classpath.
 
 ## Deploy
 
-`deployCloudScriptModule` builds, validates and uploads both variants to the
-CloudScript backend:
+`deployCloudScriptModule` builds, validates and uploads the enabled variants to
+the CloudScript backend:
 
 ```powershell
 $env:CLOUDSCRIPT_TOKEN = "<session-token>"
@@ -163,6 +216,48 @@ cloudScriptModule {
     deployCloudMc.set(true)
 }
 ```
+
+`deployDesktop` and `deployCloudMc` control which artifacts are built,
+validated and uploaded. When `deployCloudMc` is enabled, the task uploads the
+final jar produced by `generateCloudMcNativeMetadata`:
+
+```text
+build/libs/<moduleName>-Api<api>-cloudmc.jar
+```
+
+It does not upload the intermediate jar produced by `remapCloudMcModule`.
+
+API 26 is CloudMC-only in this plugin release:
+
+```kotlin
+cloudScriptModule {
+    apiVersion.set(26)
+    deployDesktop.set(false)
+    deployCloudMc.set(true)
+}
+```
+
+## Compatibility notes
+
+For API 10 and API 18, existing module projects that use the public tasks
+continue to build desktop Minecraft and JVM CloudMC artifacts the same way:
+
+```text
+buildCloudMcModule
+buildCloudScriptModule
+deployCloudScriptModule
+```
+
+The CloudMC jar now includes additional native-image metadata under
+`META-INF/cloudmc` and `META-INF/native-image`. This does not change the module
+runtime contract for desktop Minecraft or JVM CloudMC, but it does change the
+byte-for-byte jar contents. If your release flow stores checksums, signatures or
+other artifact hashes, generate them from the final `build/libs` jar.
+
+`remapCloudMcModule` is now an intermediate pipeline step. Automation outside
+Gradle should consume the final `build/libs/<moduleName>-Api<api>-cloudmc.jar`
+artifact or call `buildCloudMcModule`, `buildCloudScriptModule` or
+`deployCloudScriptModule`.
 
 ## Example projects
 
