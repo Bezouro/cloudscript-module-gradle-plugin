@@ -15,6 +15,10 @@ final class ModuleNames {
             + ".jar";
     }
 
+    static String stripJarSuffix(String name) {
+        return name.endsWith(".jar") ? name.substring(0, name.length() - ".jar".length()) : name;
+    }
+
     private static String stripApiSuffix(String name, int apiVersion) {
         String result = name;
         String previous;

@@ -2,12 +2,18 @@ package br.com.cloudmc.gradle;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.jvm.tasks.Jar;
+
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 
 public class CloudScriptModulePlugin implements Plugin<Project> {
     @Override
@@ -44,6 +50,15 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
         });
 
         project.afterEvaluate(ignored -> {
+            String architecture = extension.getArchitecture().get().trim().toLowerCase(Locale.ROOT);
+            if ("multi-runtime".equals(architecture) || "multiruntime".equals(architecture)) {
+                configureMultiRuntime(project, extension, stubs);
+                return;
+            }
+            if (!"normal".equals(architecture)) {
+                throw new IllegalArgumentException("Unsupported CloudScript module architecture '" + architecture + "'; expected normal or multi-runtime");
+            }
+
             int apiVersion = extension.getApiVersion().get();
             if (apiVersion != 10 && apiVersion != 18 && apiVersion != 26) {
                 throw new IllegalArgumentException("Unsupported CloudScript API " + apiVersion + "; expected 10, 18 or 26");
@@ -217,6 +232,165 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 });
             }
         });
+    }
+
+    private void configureMultiRuntime(Project project, CloudScriptModuleExtension extension, Configuration legacyStubs) {
+        String moduleName = extension.getModuleName().get();
+        Map<String, RuntimeTarget> supported = supportedRuntimeTargets();
+        SourceSetContainer sourceSets = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
+        java.util.List<TaskProvider<? extends Task>> buildTasks = new java.util.ArrayList<>();
+
+        for (String requestedRuntime : extension.getRuntimes().get()) {
+            RuntimeTarget target = supported.get(normalizeRuntime(requestedRuntime));
+            if (target == null) {
+                throw new IllegalArgumentException("Unsupported CloudScript runtime '" + requestedRuntime + "'. Supported runtimes: " + String.join(", ", supported.keySet()));
+            }
+            validateApiVersion(target.apiVersion);
+
+            SourceSet sourceSet = sourceSets.create(target.sourceSetName, source -> {
+                source.getJava().srcDir("src/common/java");
+                source.getJava().srcDir("src/" + target.runtimeName + "/java");
+                source.getResources().srcDir("src/common/resources");
+                source.getResources().srcDir("src/" + target.runtimeName + "/resources");
+            });
+
+            addTargetStubDependencies(project, extension, sourceSet, target);
+
+            TaskProvider<Jar> rawJar = project.getTasks().register("jar" + target.capitalized + "Module", Jar.class, task -> {
+                task.setGroup("CloudScript");
+                task.setDescription("Builds the raw CloudScript module jar for " + target.runtimeName + ".");
+                task.from(sourceSet.getOutput());
+                task.getArchiveBaseName().set(ModuleNames.stripJarSuffix(ModuleNames.artifactName(moduleName, target.apiVersion, target.runtimeName + "-raw")));
+                task.getArchiveVersion().set("");
+                task.getDestinationDirectory().set(project.getLayout().getBuildDirectory().dir("intermediates/cloudscript/" + target.runtimeName + "/raw"));
+            });
+
+            TaskProvider<? extends Task> artifactTask = rawJar;
+            org.gradle.api.provider.Provider<org.gradle.api.file.RegularFile> artifactFile = rawJar.flatMap(Jar::getArchiveFile);
+
+            if (target.obfuscateMinecraft) {
+                TaskProvider<ObfuscateDesktopModuleTask> obfuscate = project.getTasks().register("obfuscate" + target.capitalized + "Module", ObfuscateDesktopModuleTask.class, task -> {
+                    task.setGroup("CloudScript");
+                    task.setDescription("Builds the " + target.runtimeName + " module jar, remapping Minecraft MCP names back to notch names.");
+                    task.getApiVersion().set(target.apiVersion);
+                    task.getModernMinecraftNames().set(target.apiVersion == 10 || extension.getModernMinecraftNames().get());
+                    task.getInputJar().set(rawJar.flatMap(Jar::getArchiveFile));
+                    task.getRemapClasspath().from(sourceSet.getCompileClasspath());
+                    task.getOutputJar().set(project.getLayout().getBuildDirectory().file(
+                        "libs/" + ModuleNames.artifactName(moduleName, target.apiVersion, target.runtimeName)
+                    ));
+                });
+
+                TaskProvider<ValidateDesktopModuleTask> validateDesktop = project.getTasks().register("validate" + target.capitalized + "MinecraftObfuscation", ValidateDesktopModuleTask.class, task -> {
+                    task.setGroup("CloudScript");
+                    task.setDescription("Validates the " + target.runtimeName + " Minecraft obfuscation result.");
+                    task.getApiVersion().set(target.apiVersion);
+                    task.getModuleJar().set(obfuscate.flatMap(ObfuscateDesktopModuleTask::getOutputJar));
+                    task.getRemapClasspath().from(sourceSet.getCompileClasspath());
+                });
+                artifactTask = validateDesktop;
+                artifactFile = obfuscate.flatMap(ObfuscateDesktopModuleTask::getOutputJar);
+            } else {
+                rawJar.configure(task -> {
+                    task.getArchiveBaseName().set(ModuleNames.stripJarSuffix(ModuleNames.artifactName(moduleName, target.apiVersion, target.runtimeName)));
+                    task.getDestinationDirectory().set(project.getLayout().getBuildDirectory().dir("libs"));
+                });
+            }
+
+            org.gradle.api.provider.Provider<org.gradle.api.file.RegularFile> finalArtifactFile = artifactFile;
+            TaskProvider<? extends Task> finalArtifactTask = artifactTask;
+            TaskProvider<ValidateCloudScriptModuleTask> validateCloudScript = project.getTasks().register("validate" + target.capitalized + "CloudScriptModule", ValidateCloudScriptModuleTask.class, task -> {
+                task.setGroup("CloudScript");
+                task.setDescription("Validates CloudScript-specific rules for " + target.runtimeName + ".");
+                task.getApiVersion().set(target.apiVersion);
+                task.getModuleJar().set(finalArtifactFile);
+            });
+            validateCloudScript.configure(task -> task.dependsOn(finalArtifactTask));
+
+            TaskProvider<Task> buildRuntime = project.getTasks().register("build" + target.capitalized + "Module", task -> {
+                task.setGroup("CloudScript");
+                task.setDescription("Builds and validates the CloudScript module for " + target.runtimeName + ".");
+                task.dependsOn(validateCloudScript);
+            });
+            buildTasks.add(buildRuntime);
+        }
+
+        project.getTasks().register("buildCloudScriptModule", task -> {
+            task.setGroup("CloudScript");
+            task.setDescription("Builds all configured CloudScript runtime module jars.");
+            buildTasks.forEach(task::dependsOn);
+        });
+
+        project.getTasks().register("deployCloudScriptModule", task -> {
+            task.setGroup("CloudScript");
+            task.setDescription("Multi-runtime deploy is not wired yet; use buildCloudScriptModule and upload the generated runtime jars.");
+            task.doFirst(ignored -> {
+                throw new UnsupportedOperationException("deployCloudScriptModule does not support architecture=multi-runtime yet. Use buildCloudScriptModule and publish the generated runtime jars.");
+            });
+        });
+
+        if (extension.getAttachToBuild().get()) {
+            project.getTasks().named("build").configure(task -> buildTasks.forEach(task::dependsOn));
+        }
+    }
+
+    private void addTargetStubDependencies(Project project, CloudScriptModuleExtension extension, SourceSet sourceSet, RuntimeTarget target) {
+        String stubsVersion = extension.getStubsVersion().get();
+        if (extension.getAddStubDependency().get() && extension.getAddCloudMcStubDependency().get()) {
+            project.getDependencies().add(
+                sourceSet.getCompileOnlyConfigurationName(),
+                "br.com.cloudmc:cloudmc-api" + target.apiVersion + "-stubs:" + stubsVersion
+            );
+        }
+        if (extension.getAddCloudScriptStubDependency().get()) {
+            project.getDependencies().add(
+                sourceSet.getCompileOnlyConfigurationName(),
+                "com.bezouro.modules.cloudscript:cloudscript-dev-api" + target.apiVersion + "-stubs:" + stubsVersion
+            );
+        }
+    }
+
+    private void validateApiVersion(int apiVersion) {
+        if (apiVersion != 10 && apiVersion != 18 && apiVersion != 26) {
+            throw new IllegalArgumentException("Unsupported CloudScript API " + apiVersion + "; expected 10, 18 or 26");
+        }
+    }
+
+    private Map<String, RuntimeTarget> supportedRuntimeTargets() {
+        Map<String, RuntimeTarget> targets = new LinkedHashMap<>();
+        addRuntimeTarget(targets, new RuntimeTarget("desktop15", 10, true));
+        addRuntimeTarget(targets, new RuntimeTarget("desktop18", 18, true));
+        addRuntimeTarget(targets, new RuntimeTarget("minicraft15", 10, false));
+        addRuntimeTarget(targets, new RuntimeTarget("minicraft18", 18, false));
+        addRuntimeTarget(targets, new RuntimeTarget("microcraft", 26, false));
+        return targets;
+    }
+
+    private void addRuntimeTarget(Map<String, RuntimeTarget> targets, RuntimeTarget target) {
+        targets.put(target.runtimeName, target);
+    }
+
+    private String normalizeRuntime(String runtime) {
+        return runtime.trim().toLowerCase(Locale.ROOT)
+            .replace("-", "")
+            .replace("_", "")
+            .replace(".", "");
+    }
+
+    private static final class RuntimeTarget {
+        final String runtimeName;
+        final int apiVersion;
+        final boolean obfuscateMinecraft;
+        final String capitalized;
+        final String sourceSetName;
+
+        RuntimeTarget(String runtimeName, int apiVersion, boolean obfuscateMinecraft) {
+            this.runtimeName = runtimeName;
+            this.apiVersion = apiVersion;
+            this.obfuscateMinecraft = obfuscateMinecraft;
+            this.capitalized = Character.toUpperCase(runtimeName.charAt(0)) + runtimeName.substring(1);
+            this.sourceSetName = "cloudScript" + capitalized;
+        }
     }
 
     private String defaultMinecraftVersion(int apiVersion) {

@@ -9,6 +9,18 @@ Standalone example project zips:
 - [dist/examples/cloudscript-api10-example.zip](dist/examples/cloudscript-api10-example.zip)
 - [dist/examples/cloudscript-api18-example.zip](dist/examples/cloudscript-api18-example.zip)
 
+Source-layout example for future multi-runtime modules:
+
+- [examples/multitarget-module](examples/multitarget-module)
+- [examples/pressbutton-multitarget](examples/pressbutton-multitarget)
+
+Architecture modes:
+
+- `normal` keeps the existing single-API workflow and task names.
+- `multi-runtime` creates one target per configured runtime, imports the
+  matching stubs, obfuscates only Desktop Minecraft targets and leaves
+  Minicraft/Microcraft jars as-is.
+
 Current behavior:
 
 - API 10 / Minecraft 1.5: compiles normally, remaps `net/minecraft/src/*` class

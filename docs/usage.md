@@ -272,3 +272,51 @@ Each zip is a standalone Gradle project. Extract it and run:
 ```powershell
 .\gradlew.bat buildCloudScriptModule
 ```
+
+The repository also includes
+[`examples/multitarget-module`](../examples/multitarget-module), a source-layout
+blueprint for modules that keep behavior in common code and isolate Desktop
+1.5, Desktop 1.8, CloudMC/Minicraft and Microcraft differences behind small
+runtime adapters. The current plugin still builds one API version at a time;
+that example documents the target structure the plugin should automate next.
+
+For a concrete action implementation, see
+[`examples/pressbutton-multitarget`](../examples/pressbutton-multitarget). It
+implements `pressbutton(<0..2>)` with common validation plus runtime adapters
+for Desktop 1.5, Desktop 1.8, Minicraft 1.5, Minicraft 1.8 and Microcraft.
+
+## Multi-runtime modules
+
+Existing projects keep using the default architecture:
+
+```kotlin
+cloudScriptModule {
+    architecture.set("normal")
+    apiVersion.set(18)
+}
+```
+
+For the adapter layout, opt into the new architecture and list the supported
+runtimes:
+
+```kotlin
+cloudScriptModule {
+    architecture.set("multi-runtime")
+    moduleName.set("PressButton")
+    runtimes.set(listOf(
+        "desktop15",
+        "desktop18",
+        "minicraft15",
+        "minicraft18",
+        "microcraft"
+    ))
+}
+```
+
+The plugin creates one source set per runtime from `src/common/java` plus
+`src/<runtime>/java`, imports the matching CloudMC and CloudScript stubs for
+that runtime, and creates build tasks like `buildDesktop15Module`,
+`buildMinicraft18Module` and `buildMicrocraftModule`.
+
+Minecraft obfuscation is applied only to `desktop15` and `desktop18`.
+`minicraft15`, `minicraft18` and `microcraft` are packaged as-is.

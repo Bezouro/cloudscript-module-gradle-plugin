@@ -32,6 +32,8 @@ public abstract class CloudScriptModuleExtension {
     private final Property<Boolean> nativeIncludeModuleResources;
     private final ListProperty<String> nativeReflectClasses;
     private final ListProperty<String> nativeResourcePatterns;
+    private final Property<String> architecture;
+    private final ListProperty<String> runtimes;
 
     @Inject
     public CloudScriptModuleExtension(ObjectFactory objects) {
@@ -59,6 +61,14 @@ public abstract class CloudScriptModuleExtension {
         this.nativeIncludeModuleResources = objects.property(Boolean.class).convention(true);
         this.nativeReflectClasses = objects.listProperty(String.class).convention(java.util.List.of());
         this.nativeResourcePatterns = objects.listProperty(String.class).convention(java.util.List.of());
+        this.architecture = objects.property(String.class).convention("normal");
+        this.runtimes = objects.listProperty(String.class).convention(java.util.List.of(
+            "desktop15",
+            "desktop18",
+            "minicraft15",
+            "minicraft18",
+            "microcraft"
+        ));
     }
 
     public Property<Integer> getApiVersion() {
@@ -155,5 +165,13 @@ public abstract class CloudScriptModuleExtension {
 
     public ListProperty<String> getNativeResourcePatterns() {
         return nativeResourcePatterns;
+    }
+
+    public Property<String> getArchitecture() {
+        return architecture;
+    }
+
+    public ListProperty<String> getRuntimes() {
+        return runtimes;
     }
 }
