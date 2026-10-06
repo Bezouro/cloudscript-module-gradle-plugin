@@ -73,10 +73,24 @@ public abstract class ValidateCloudScriptModuleTask extends DefaultTask {
                     AnnotationCheck check = inspectClass(zip.readAllBytes(), expectedApi, expectedSign);
                     annotatedClasses += check.annotated ? 1 : 0;
                     issues.addAll(check.issues);
+                    if (expectedSign < 0 && isHeadlessModuleEntry(entry.getName()) && !check.annotated) {
+                        issues.add(" - " + entry.getName().replace('/', '.').replaceFirst("\\.class$", "")
+                            + " is missing @APIVersion; expected -" + expectedApi + " or 0");
+                    }
                 }
             }
         }
         return annotatedClasses;
+    }
+
+    private static boolean isHeadlessModuleEntry(String entryName) {
+        String fileName = entryName.substring(entryName.lastIndexOf('/') + 1);
+        return fileName.endsWith(".class")
+            && !fileName.contains("$")
+            && (fileName.startsWith("CloudScriptAction")
+                || fileName.startsWith("CloudVariableProvider")
+                || fileName.startsWith("CloudScriptedIterator")
+                || fileName.startsWith("CloudEventProvider"));
     }
 
     private AnnotationCheck inspectClass(byte[] bytes, int expectedApi, int expectedSign) {

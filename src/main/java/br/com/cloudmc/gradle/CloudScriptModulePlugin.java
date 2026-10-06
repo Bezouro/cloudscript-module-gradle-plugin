@@ -373,7 +373,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
         addRuntimeTarget(targets, new RuntimeTarget("desktop18", 18, true));
         addRuntimeTarget(targets, new RuntimeTarget("minicraft15", 10, false));
         addRuntimeTarget(targets, new RuntimeTarget("minicraft18", 18, false));
-        addRuntimeTarget(targets, new RuntimeTarget("microcraft", 26, false));
+        addRuntimeTarget(targets, new RuntimeTarget("microcraft", 18, false));
         return targets;
     }
 
