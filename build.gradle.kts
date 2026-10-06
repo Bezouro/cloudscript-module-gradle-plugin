@@ -30,6 +30,7 @@ dependencies {
     implementation("org.ow2.asm:asm:9.7.1")
     implementation("org.ow2.asm:asm-commons:9.7.1")
     implementation("org.ow2.asm:asm-tree:9.7.1")
+    testImplementation("junit:junit:4.13.2")
 }
 
 publishing {

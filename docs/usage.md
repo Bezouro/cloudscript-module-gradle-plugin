@@ -320,3 +320,4 @@ that runtime, and creates build tasks like `buildDesktop15Module`,
 
 Minecraft obfuscation is applied only to `desktop15` and `desktop18`.
 `minicraft15`, `minicraft18` and `microcraft` are packaged as-is.
+The `microcraft` target uses CloudScript API 18, matching its current core runtime.

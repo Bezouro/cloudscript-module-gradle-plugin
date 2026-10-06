@@ -29,19 +29,31 @@ public abstract class ValidateCloudScriptModuleTask extends DefaultTask {
     @Input
     public abstract Property<Integer> getApiVersion();
 
+    /** -1 for headless runtimes, 1 for Desktop, 0 for the legacy shared artifact. */
+    @Input
+    public abstract Property<Integer> getExpectedApiSign();
+
     @InputFile
     @PathSensitive(PathSensitivity.RELATIVE)
     public abstract RegularFileProperty getModuleJar();
 
+    public ValidateCloudScriptModuleTask() {
+        getExpectedApiSign().convention(0);
+    }
+
     @TaskAction
     public void run() throws IOException {
         int expectedApi = getApiVersion().get();
+        int expectedSign = getExpectedApiSign().get();
         if (expectedApi != 10 && expectedApi != 18 && expectedApi != 26) {
             throw new IllegalStateException("Unsupported CloudScript API " + expectedApi + "; expected 10, 18 or 26");
         }
+        if (expectedSign < -1 || expectedSign > 1) {
+            throw new IllegalStateException("Unsupported API annotation sign " + expectedSign + "; expected -1, 0 or 1");
+        }
 
         List<String> issues = new ArrayList<>();
-        int annotatedClasses = inspectJar(Files.readAllBytes(getModuleJar().get().getAsFile().toPath()), expectedApi, issues);
+        int annotatedClasses = inspectJar(Files.readAllBytes(getModuleJar().get().getAsFile().toPath()), expectedApi, expectedSign, issues);
         if (!issues.isEmpty()) {
             throw new IllegalStateException("CloudScript module rule violations:" + System.lineSeparator() + String.join(System.lineSeparator(), issues));
         }
@@ -52,22 +64,36 @@ public abstract class ValidateCloudScriptModuleTask extends DefaultTask {
         getLogger().lifecycle("[CloudScript] CloudScript API {} rules passed for {}", expectedApi, getModuleJar().get().getAsFile());
     }
 
-    private int inspectJar(byte[] jar, int expectedApi, List<String> issues) throws IOException {
+    private int inspectJar(byte[] jar, int expectedApi, int expectedSign, List<String> issues) throws IOException {
         int annotatedClasses = 0;
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(jar))) {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 if (!entry.isDirectory() && entry.getName().endsWith(".class")) {
-                    AnnotationCheck check = inspectClass(zip.readAllBytes(), expectedApi);
+                    AnnotationCheck check = inspectClass(zip.readAllBytes(), expectedApi, expectedSign);
                     annotatedClasses += check.annotated ? 1 : 0;
                     issues.addAll(check.issues);
+                    if (expectedSign < 0 && isHeadlessModuleEntry(entry.getName()) && !check.annotated) {
+                        issues.add(" - " + entry.getName().replace('/', '.').replaceFirst("\\.class$", "")
+                            + " is missing @APIVersion; expected -" + expectedApi + " or 0");
+                    }
                 }
             }
         }
         return annotatedClasses;
     }
 
-    private AnnotationCheck inspectClass(byte[] bytes, int expectedApi) {
+    private static boolean isHeadlessModuleEntry(String entryName) {
+        String fileName = entryName.substring(entryName.lastIndexOf('/') + 1);
+        return fileName.endsWith(".class")
+            && !fileName.contains("$")
+            && (fileName.startsWith("CloudScriptAction")
+                || fileName.startsWith("CloudVariableProvider")
+                || fileName.startsWith("CloudScriptedIterator")
+                || fileName.startsWith("CloudEventProvider"));
+    }
+
+    private AnnotationCheck inspectClass(byte[] bytes, int expectedApi, int expectedSign) {
         AnnotationCheck check = new AnnotationCheck();
         new ClassReader(bytes).accept(new ClassVisitor(Opcodes.ASM9) {
             private String className;
@@ -81,18 +107,41 @@ public abstract class ValidateCloudScriptModuleTask extends DefaultTask {
             public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
                 if (!API_VERSION_ANNOTATION.equals(descriptor)) return null;
                 check.annotated = true;
+                if (!visible) {
+                    check.issues.add(" - " + className + " has @APIVersion that is not runtime-visible");
+                    return null;
+                }
                 return new AnnotationVisitor(Opcodes.ASM9) {
+                    private boolean hasIntegerValue;
+
                     @Override
                     public void visit(String name, Object value) {
                         if (!"value".equals(name) || !(value instanceof Integer apiValue)) return;
-                        if (Math.abs(apiValue) != expectedApi) {
-                            check.issues.add(" - " + className + " has @APIVersion(" + apiValue + "), expected " + expectedApi);
+                        hasIntegerValue = true;
+                        if (!isCompatibleApiVersion(apiValue, expectedApi, expectedSign)) {
+                            String expected = expectedSign < 0 ? "-" + expectedApi + " or 0"
+                                : expectedSign > 0 ? String.valueOf(expectedApi)
+                                : "+/-" + expectedApi;
+                            check.issues.add(" - " + className + " has @APIVersion(" + apiValue + "), expected " + expected);
+                        }
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        if (!hasIntegerValue) {
+                            check.issues.add(" - " + className + " has @APIVersion without an integer value");
                         }
                     }
                 };
             }
         }, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
         return check;
+    }
+
+    private static boolean isCompatibleApiVersion(int apiValue, int expectedApi, int expectedSign) {
+        if (expectedSign < 0) return apiValue == -expectedApi || apiValue == 0;
+        if (expectedSign > 0) return apiValue == expectedApi;
+        return Math.abs(apiValue) == expectedApi;
     }
 
     private static final class AnnotationCheck {
