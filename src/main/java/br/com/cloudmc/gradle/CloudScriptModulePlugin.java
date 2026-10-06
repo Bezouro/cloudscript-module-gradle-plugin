@@ -180,10 +180,18 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.getModuleJar().set(moduleJar.flatMap(Jar::getArchiveFile));
             });
 
+            TaskProvider<ValidateCloudScriptModuleTask> validateCloudMcAnnotations = project.getTasks().register("validateCloudMcApiAnnotations", ValidateCloudScriptModuleTask.class, task -> {
+                task.setGroup("CloudScript");
+                task.setDescription("Validates API annotations in the final CloudMC module jar.");
+                task.getApiVersion().set(apiVersion);
+                task.getExpectedApiSign().set(-1);
+                task.getModuleJar().set(nativeCloudMc.flatMap(GenerateCloudMcNativeMetadataTask::getOutputJar));
+            });
+
             project.getTasks().register("buildCloudMcModule", task -> {
                 task.setGroup("CloudScript");
                 task.setDescription("Builds and validates the CloudMC module jar.");
-                task.dependsOn(validate, validateCloudScript);
+                task.dependsOn(validate, validateCloudMcAnnotations);
             });
 
             project.getTasks().register("buildDesktopModule", task -> {
@@ -200,7 +208,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 if (apiVersion != 26) {
                     task.dependsOn(validateDesktop);
                 }
-                task.dependsOn(validate, validateCloudScript);
+                task.dependsOn(validate, validateCloudScript, validateCloudMcAnnotations);
             });
 
             project.getTasks().register("deployCloudScriptModule", DeployCloudScriptModuleTask.class, task -> {
@@ -210,9 +218,11 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                     task.dependsOn(validateDesktop);
                 }
                 if (extension.getDeployCloudMc().get()) {
-                    task.dependsOn(validate);
+                    task.dependsOn(validate, validateCloudMcAnnotations);
                 }
-                task.dependsOn(validateCloudScript);
+                if (extension.getDeployDesktop().get()) {
+                    task.dependsOn(validateCloudScript);
+                }
                 task.getApiVersion().set(apiVersion);
                 task.getBaseUrl().set(extension.getDeployBaseUrl());
                 task.getToken().set(extension.getDeployToken());
@@ -228,7 +238,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                     if (apiVersion != 26) {
                         task.dependsOn(validateDesktop);
                     }
-                    task.dependsOn(validate, validateCloudScript);
+                    task.dependsOn(validate, validateCloudScript, validateCloudMcAnnotations);
                 });
             }
         });
@@ -303,6 +313,7 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.setGroup("CloudScript");
                 task.setDescription("Validates CloudScript-specific rules for " + target.runtimeName + ".");
                 task.getApiVersion().set(target.apiVersion);
+                task.getExpectedApiSign().set(target.obfuscateMinecraft ? 1 : -1);
                 task.getModuleJar().set(finalArtifactFile);
             });
             validateCloudScript.configure(task -> task.dependsOn(finalArtifactTask));
