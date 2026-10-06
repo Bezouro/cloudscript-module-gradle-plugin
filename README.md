@@ -48,7 +48,7 @@ pluginManagement {
 ```kotlin
 plugins {
     java
-    id("br.com.cloudmc.cloudscript-module") version "0.4.6"
+    id("br.com.cloudmc.cloudscript-module") version "0.4.11"
 }
 
 cloudScriptModule {
@@ -128,6 +128,22 @@ uploaded CloudMC artifact is the final
 `build/libs/<project>-Api<api>-cloudmc.jar` produced by
 `generateCloudMcNativeMetadata`, not the intermediate output from
 `remapCloudMcModule`.
+
+To request a Microcraft variant from an API 18 desktop upload, enable the
+conversion explicitly:
+
+```kotlin
+cloudScriptModule {
+    apiVersion.set(18)
+    convertDesktopToMicrocraft.set(true)
+    // Enable only when the converted variant should replace an existing native one.
+    replaceNativeMicrocraft.set(false)
+}
+```
+
+Both options default to `false`. Conversion requires `deployDesktop=true` and
+API 18. `replaceNativeMicrocraft=true` additionally requires conversion. The
+CloudMC upload and native multi-runtime builds do not request this conversion.
 
 For API 10 and API 18, the normal public build and deploy tasks remain
 compatible with existing desktop Minecraft and JVM CloudMC module workflows. The

@@ -63,6 +63,15 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
             if (apiVersion != 10 && apiVersion != 18 && apiVersion != 26) {
                 throw new IllegalArgumentException("Unsupported CloudScript API " + apiVersion + "; expected 10, 18 or 26");
             }
+            if (extension.getReplaceNativeMicrocraft().get() && !extension.getConvertDesktopToMicrocraft().get()) {
+                throw new IllegalArgumentException("replaceNativeMicrocraft requires convertDesktopToMicrocraft=true");
+            }
+            if (extension.getConvertDesktopToMicrocraft().get() && apiVersion != 18) {
+                throw new IllegalArgumentException("convertDesktopToMicrocraft requires CloudScript API 18");
+            }
+            if (extension.getConvertDesktopToMicrocraft().get() && !extension.getDeployDesktop().get()) {
+                throw new IllegalArgumentException("convertDesktopToMicrocraft requires deployDesktop=true");
+            }
 
             String moduleName = extension.getModuleName().get();
             String minecraftVersion = extension.getMinecraftVersion().getOrElse(defaultMinecraftVersion(apiVersion));
@@ -229,6 +238,8 @@ public class CloudScriptModulePlugin implements Plugin<Project> {
                 task.getModuleName().set(extension.getModuleName());
                 task.getDeployDesktop().set(extension.getDeployDesktop());
                 task.getDeployCloudMc().set(extension.getDeployCloudMc());
+                task.getConvertDesktopToMicrocraft().set(extension.getConvertDesktopToMicrocraft());
+                task.getReplaceNativeMicrocraft().set(extension.getReplaceNativeMicrocraft());
                 task.getDesktopJar().set(obfuscateDesktop.flatMap(ObfuscateDesktopModuleTask::getOutputJar));
                 task.getCloudMcJar().set(nativeCloudMc.flatMap(GenerateCloudMcNativeMetadataTask::getOutputJar));
             });
