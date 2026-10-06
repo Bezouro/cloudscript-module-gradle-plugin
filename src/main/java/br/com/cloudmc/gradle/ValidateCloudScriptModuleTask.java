@@ -107,15 +107,29 @@ public abstract class ValidateCloudScriptModuleTask extends DefaultTask {
             public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
                 if (!API_VERSION_ANNOTATION.equals(descriptor)) return null;
                 check.annotated = true;
+                if (!visible) {
+                    check.issues.add(" - " + className + " has @APIVersion that is not runtime-visible");
+                    return null;
+                }
                 return new AnnotationVisitor(Opcodes.ASM9) {
+                    private boolean hasIntegerValue;
+
                     @Override
                     public void visit(String name, Object value) {
                         if (!"value".equals(name) || !(value instanceof Integer apiValue)) return;
+                        hasIntegerValue = true;
                         if (!isCompatibleApiVersion(apiValue, expectedApi, expectedSign)) {
                             String expected = expectedSign < 0 ? "-" + expectedApi + " or 0"
                                 : expectedSign > 0 ? String.valueOf(expectedApi)
                                 : "+/-" + expectedApi;
                             check.issues.add(" - " + className + " has @APIVersion(" + apiValue + "), expected " + expected);
+                        }
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        if (!hasIntegerValue) {
+                            check.issues.add(" - " + className + " has @APIVersion without an integer value");
                         }
                     }
                 };

@@ -66,6 +66,25 @@ public class ValidateCloudScriptModuleTaskTest {
     }
 
     @Test
+    public void rejectsRuntimeInvisibleAnnotationForEveryArtifactType() throws IOException {
+        for (int expectedSign : new int[] {-1, 0, 1}) {
+            int apiVersion = expectedSign < 0 ? -18 : 18;
+            IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> validate(expectedSign, "CloudScriptActionProbe", true, false, apiVersion));
+            assertTrue(error.getMessage().contains("@APIVersion that is not runtime-visible"));
+        }
+    }
+
+    @Test
+    public void rejectsAnnotationWithoutIntegerValue() throws IOException {
+        for (Object value : new Object[] {null, "-18"}) {
+            IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> validate(-1, "CloudScriptActionProbe", true, true, value));
+            assertTrue(error.getMessage().contains("@APIVersion without an integer value"));
+        }
+    }
+
+    @Test
     public void microcraftTargetUsesCoreApi18() throws IOException {
         File projectDirectory = temporaryFolder.newFolder();
         Files.writeString(new File(projectDirectory, "settings.gradle").toPath(), "rootProject.name = 'probe'\n");
@@ -98,11 +117,15 @@ public class ValidateCloudScriptModuleTaskTest {
     }
 
     private void validate(int expectedSign, String className, Integer annotatedVersion) throws IOException {
+        validate(expectedSign, className, annotatedVersion != null, true, annotatedVersion);
+    }
+
+    private void validate(int expectedSign, String className, boolean annotated, boolean runtimeVisible, Object annotatedValue) throws IOException {
         File projectDirectory = temporaryFolder.newFolder();
         File jar = new File(projectDirectory, "module.jar");
         try (JarOutputStream output = new JarOutputStream(new FileOutputStream(jar))) {
             output.putNextEntry(new JarEntry("example/" + className + ".class"));
-            output.write(moduleClass(className, annotatedVersion));
+            output.write(moduleClass(className, annotated, runtimeVisible, annotatedValue));
             output.closeEntry();
         }
 
@@ -114,12 +137,12 @@ public class ValidateCloudScriptModuleTaskTest {
         task.run();
     }
 
-    private byte[] moduleClass(String className, Integer apiVersion) {
+    private byte[] moduleClass(String className, boolean annotated, boolean runtimeVisible, Object apiVersion) {
         ClassWriter writer = new ClassWriter(0);
         writer.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "example/" + className, null, "java/lang/Object", null);
-        if (apiVersion != null) {
-            AnnotationVisitor annotation = writer.visitAnnotation("Lnet/eq2online/macros/scripting/api/APIVersion;", true);
-            annotation.visit("value", apiVersion);
+        if (annotated) {
+            AnnotationVisitor annotation = writer.visitAnnotation("Lnet/eq2online/macros/scripting/api/APIVersion;", runtimeVisible);
+            if (apiVersion != null) annotation.visit("value", apiVersion);
             annotation.visitEnd();
         }
         writer.visitEnd();
