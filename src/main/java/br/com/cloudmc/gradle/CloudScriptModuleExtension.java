@@ -28,6 +28,8 @@ public abstract class CloudScriptModuleExtension {
     private final Property<String> moduleName;
     private final Property<Boolean> deployDesktop;
     private final Property<Boolean> deployCloudMc;
+    private final Property<Boolean> convertDesktopToMicrocraft;
+    private final Property<Boolean> replaceNativeMicrocraft;
     private final Property<Boolean> nativeMetadata;
     private final Property<Boolean> nativeIncludeModuleResources;
     private final ListProperty<String> nativeReflectClasses;
@@ -57,6 +59,8 @@ public abstract class CloudScriptModuleExtension {
         this.moduleName = objects.property(String.class);
         this.deployDesktop = objects.property(Boolean.class).convention(true);
         this.deployCloudMc = objects.property(Boolean.class).convention(true);
+        this.convertDesktopToMicrocraft = objects.property(Boolean.class).convention(false);
+        this.replaceNativeMicrocraft = objects.property(Boolean.class).convention(false);
         this.nativeMetadata = objects.property(Boolean.class).convention(true);
         this.nativeIncludeModuleResources = objects.property(Boolean.class).convention(true);
         this.nativeReflectClasses = objects.listProperty(String.class).convention(java.util.List.of());
@@ -149,6 +153,14 @@ public abstract class CloudScriptModuleExtension {
 
     public Property<Boolean> getDeployCloudMc() {
         return deployCloudMc;
+    }
+
+    public Property<Boolean> getConvertDesktopToMicrocraft() {
+        return convertDesktopToMicrocraft;
+    }
+
+    public Property<Boolean> getReplaceNativeMicrocraft() {
+        return replaceNativeMicrocraft;
     }
 
     public Property<Boolean> getNativeMetadata() {
